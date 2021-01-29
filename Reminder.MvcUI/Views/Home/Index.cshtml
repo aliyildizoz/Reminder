@@ -1,0 +1,183 @@
+﻿@model HomeIndexViewModel
+@{
+    ViewData["Title"] = "Home Page";
+}
+<style>
+    .pointer {
+        cursor: pointer;
+    }
+
+    .buttonEdit:hover {
+        color: #ba8b00
+    }
+</style>
+<div id="nowIsTime">
+    @if (Model.NowIsTime.Count > 0)
+    {
+
+        @foreach (var nowIsTime in Model.NowIsTime)
+        {
+            <div class="alert alert-warning mr-5 ml-5 mb-3 mt-3" role="alert">
+                <h6 class="mb-3">
+                    @{
+                        var title = string.IsNullOrEmpty(nowIsTime.Title) ? "Reminder" : nowIsTime.Title;
+                    }
+                    @title.ToString()<a class="mr-3 text-danger float-right" asp-action="Remove" asp-route-id="@nowIsTime.Id.ToString("N")"><i class="fas fa-trash-alt"></i></a>
+                </h6>
+                <h4>
+                    <a class="mr-3 text-success" asp-action="TimeOut" asp-route-id="@nowIsTime.Id.ToString("N")"><i class="fas fa-check-circle "></i></a>
+                    <b class="font-weight-light">@nowIsTime.ReminderDate.ToString("F")</b>
+                </h4>
+            </div>
+        }
+
+    }
+</div>
+<div class="text-center">
+    @await Html.PartialAsync("CreateReminderPartialView", new ReminderCreateViewModel())
+</div>
+<script>
+
+    var audioElement = document.createElement('audio');
+    audioElement.setAttribute('src', 'http://www.soundjay.com/misc/sounds/bell-ringing-01.mp3');
+    audioElement.addEventListener('ended', function () {
+        this.play();
+    }, false);
+    function stopAudio(id) {
+        audioElement.pause();
+        var element = $("#" + id);
+        element.removeClass("bg-warning shadow-lg p-3 mb-5 rounded");
+        element.addClass("alert-warning");
+        $("#check").removeClass("fa-2x");
+        $(".pointer").remove();
+    }
+    function edit(pid, id) {
+        var $el = $("#" + pid);
+        var $input = $('<input/>').val($el.text());
+
+        $el.replaceWith($input);
+        $input.addClass("form-control form-control-lg rounded-0 ");
+        var save = function () {
+            var $p = $('<span id="' + pid + '" onclick="edit(\'' + pid + '\',\'' + id + '\')" />').text($input.val());
+            $input.replaceWith($p);
+            $.post("Home/Retitle/", { title: $input.val(), id: id }).fail(function (err) {
+                    alert("An error occurred.");
+                    console.error(err);
+            });
+        };
+        $input.on('keydown', function (event) {
+            if (event.keyCode == 13) {
+                save();
+            }
+        });
+        $input.one('blur', save).focus();
+
+    };
+    function countdown(finish_date, timer, id) {
+
+        var x = setInterval(function () {
+
+            var now = new Date().getTime();
+
+            var distance = finish_date - now;
+
+            var days = Math.floor(distance / (1000 * 60 * 60 * 24));
+            var hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            var minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+            var seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+            timer.innerHTML = days + "d " + hours + "h " + minutes + "m " + "<b>" + seconds + "s</b>";
+
+
+            if (distance < 0) {
+                clearInterval(x);
+                $("#" + id).remove();
+                $.get("Home/NowIsTime/" + id, function (data) {
+                    console.log(data);
+                    $("#nowIsTime").empty();
+                    var title = data[0].title === "" || data[0].title === null ? "Reminder" : data[0].title;
+                    var alertDiv = '<div class="alert shadow-lg p-3 mb-5 bg-warning mr-5 ml-5 mb-3 mt-3" role="alert" id="' + id + '"> <h6 class="mb-3">' + title + ' <a class="mr-3 text-danger float-right" href="home/remove/' + data[0].id.toString() + '"><i class="fas fa-trash-alt"></i></a></h6><h4 class="desc"><a onclick="stopAudio(\'' + id.toString() + '\')" class="pointer  mr-2 text-danger" ><i class="far fa-stop-circle fa-2x"></i></a><a class="mr-3 text-success" href="home/TimeOut/' + data[0].id + '"><i id="check" class="fas fa-check-circle fa-2x"></i></a><b class="font-weight-light">' + data[0].reminderLongDate + '</b></h4></div>';
+                    $("#nowIsTime").append(alertDiv);
+                    if (data.length > 1) {
+                        for (var i = 1; i < data.length; i++) {
+                            var title = data[i].title === "" || data[i].title === null ? "Reminder" : data[i].title;
+                            var alertDiv = '<div class="alert alert-warning mr-5 ml-5 mb-3 mt-3" role="alert" id="' + data[i].id.toString() + '"> <h6 class="mb-3">' + title + ' <a class="mr-3 text-danger float-right" href="home/remove/' + data[i].id.toString() + '"><i class="fas fa-trash-alt"></i></a></h6><h4><a class="mr-3 text-success" href="home/TimeOut/' + data[i].id + '"><i class="fas fa-check-circle"></i></a><b class="font-weight-light">' + data[i].reminderLongDate + '</b></h4></div>';
+                            $("#nowIsTime").append(alertDiv);
+                        }
+                    }
+                    var notfy = new Notification(title, { body: data[0].reminderLongDate, icon: "favicon.ico" });
+                    notfy.onclick = (e) => {
+                        audioElement.pause();
+                        $(".pointer").remove();
+                    };
+
+                }).fail(function (err) {
+                    alert("An error occurred.");
+                    console.error(err);
+                });
+                audioElement.currentTime = 0;
+                audioElement.play();
+            }
+        }, 1000);
+    }
+
+</script>
+<div>
+
+    @if (Model.NotTimeYets.Count > 0)
+    {
+
+        <div class="row">
+            <div class="col-8 offset-2">
+                <h4 class="mt-3">Reminders</h4>
+                <hr />
+                @foreach (var notTimeYet in Model.NotTimeYets)
+                {
+                    <div class="alert bg-light mr-5 ml-5" id="@notTimeYet.Id.ToString()" role="alert">
+                        <h2 class="mb-3 d-inline-flex">
+                            <span  onclick="edit('title@(notTimeYet.Id.ToString("N").Substring(20))','@(notTimeYet.Id.ToString())')" id="title@(notTimeYet.Id.ToString("N").Substring(20))">@notTimeYet.Title</span>
+                        </h2>
+                        <a class="text-danger float-right mr-3" asp-action="Remove" asp-route-id="@notTimeYet.Id.ToString("N")"><i class="fas fa-trash-alt fa-2x"></i></a>
+                        <p>
+                            <a class="mr-3 text-success" asp-action="TimeOut" asp-route-id="@notTimeYet.Id.ToString("N")"><i class="fas fa-check-circle fa-2x "></i></a>
+                            <span style=" font-size:30px;" class="font-weight-light" id="@notTimeYet.Id.ToString("N").Substring(20)"></span>
+                        </p>
+                        <script>
+                            var countDownDate = new Date("@(notTimeYet.ReminderDate.ToString("s"))");
+                            var timer = document.getElementById("@notTimeYet.Id.ToString("N").Substring(20)");
+                            countdown(countDownDate, timer,"@notTimeYet.Id.ToString()");
+                        </script>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (Model.TimeOuts.Count > 0)
+    {<div class="row">
+            <div class="col-8 offset-2">
+
+                <h4 class="mt-3">Timeout</h4>
+                <hr />
+                @foreach (var timeOut in Model.TimeOuts)
+                {
+
+                    <div class="alert bg-dark mr-5 ml-5" style="color: white;" role="alert">
+                        <h4 class="mb-3 d-inline-flex">
+                            @{
+                                var title = string.IsNullOrEmpty(timeOut.Title) ? "No title" : timeOut.Title;
+                            }
+                            <span class="d-inline-flex" onclick="edit('title@(timeOut.Id.ToString("N").Substring(20))','@(timeOut.Id.ToString())')" id="title@(timeOut.Id.ToString("N").Substring(20))">@title</span>
+                        </h4>
+                        <a class="mr-3 text-danger float-right" asp-action="Remove" asp-route-id="@timeOut.Id.ToString("N")"><i class="fas fa-trash-alt fa-2x"></i></a>
+                        <p>
+                            <span style="color: white;" class="font-weight-light">@timeOut.ReminderDate.ToString("F")</span>
+                        </p>
+
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+</div>
