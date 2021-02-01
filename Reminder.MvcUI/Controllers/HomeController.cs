@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Reminder.MvcUI.DataAccess.Abstract;
-using Reminder = Reminder.MvcUI.Entities.Reminder;
 
 namespace Reminder.MvcUI.Controllers
 {
@@ -21,13 +20,26 @@ namespace Reminder.MvcUI.Controllers
             _reminderRepository = reminderRepository;
         }
 
-        public IActionResult Index()
+        public HomeIndexViewModel GetModel()
         {
             HomeIndexViewModel model = new HomeIndexViewModel();
             model.TimeOuts = _reminderRepository.GetTimeOuts();
             model.NotTimeYets = _reminderRepository.GetNotTimeYets();
             model.NowIsTime = _reminderRepository.GetNowIsTime();
-            return View(model);
+            return model;
+        }
+        public HomeIndexViewModel GetModel(ReminderCreateViewModel createViewModel)
+        {
+            HomeIndexViewModel model = new HomeIndexViewModel();
+            model.TimeOuts = _reminderRepository.GetTimeOuts();
+            model.NotTimeYets = _reminderRepository.GetNotTimeYets();
+            model.NowIsTime = _reminderRepository.GetNowIsTime();
+            model.CreateViewModel = createViewModel;
+            return model;
+        }
+        public IActionResult Index()
+        {
+            return View(GetModel());
         }
 
         [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
@@ -37,19 +49,26 @@ namespace Reminder.MvcUI.Controllers
         }
 
         [HttpPost]
-        public IActionResult CreateReminder(ReminderCreateViewModel model)
+        public IActionResult Index(HomeIndexViewModel model)
         {
             if (ModelState.IsValid)
             {
                 _reminderRepository.Add(new Entities.Reminder
                 {
-                    Title = model.Title,
-                    ReminderDate = model.ReminderDate
+                    Title = model.CreateViewModel.Title,
+                    ReminderDate = model.CreateViewModel.ReminderDate
                 });
-                return RedirectToAction("Index");
+            }
+            else
+            {
+                ViewBag.Error= string.Join("; ", ModelState.Values
+                    .SelectMany(x => x.Errors)
+                    .Select(x => x.ErrorMessage));
             }
 
-            return PartialView("CreateReminderPartialView", model);
+            var indexViewModel = GetModel(model.CreateViewModel);
+            
+            return View(indexViewModel);
         }
 
         public IActionResult TimeOut(Guid id)
@@ -60,7 +79,7 @@ namespace Reminder.MvcUI.Controllers
         [HttpPost]
         public void Retitle(ReminderRetitleModel model)
         {
-            _reminderRepository.Retitle(model.Title, new Entities.Reminder { Id = model.id });
+            _reminderRepository.Retitle(model.Title, new Entities.Reminder { Id = model.Id });
         }
         public List<Entities.Reminder> NowIsTime(Guid id)
         {

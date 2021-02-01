@@ -10,5 +10,7 @@ namespace Reminder.MvcUI.Models
         public List<Entities.Reminder> TimeOuts { get; set; }
         public List<Entities.Reminder> NotTimeYets{ get; set; }
         public List<Entities.Reminder> NowIsTime{ get; set; }
+        public ReminderCreateViewModel CreateViewModel { get; set; }
+
     }
 }
